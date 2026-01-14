@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Deployment</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>React Native Docs - Deployment Test</h1>
+    
+    <h2>Quick Actions:</h2>
+    <button onclick="clearCacheAndReload()">Clear Cache & Reload Site</button>
+    <button onclick="checkDeployment()">Check Deployment Status</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const SITE_URL = 'https://shardul-niroula.github.io/react-native-docs/';
+        
+        function clearCacheAndReload() {
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                });
+            }
+            window.open(SITE_URL + '?nocache=' + Date.now(), '_blank');
+        }
+
+        async function checkDeployment() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Checking deployment...</p>';
+            
+            try {
+                const response = await fetch(SITE_URL, { 
+                    cache: 'no-cache',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                const html = await response.text();
+                
+                let status = '<h3>Deployment Status:</h3>';
+                
+                // Check for old references
+                if (html.includes('/index.tsx')) {
+                    status += '<div class="error">❌ ERROR: Old index.tsx reference found in HTML!</div>';
+                    status += '<p>The deployment still has the old script tag. Try deploying again.</p>';
+                } else if (html.includes('/react-native-docs/assets/index-')) {
+                    status += '<div class="success">✅ SUCCESS: Site is correctly deployed!</div>';
+                    status += '<p>The bundled assets are correctly referenced.</p>';
+                    status += '<p><strong>If you still see errors:</strong></p>';
+                    status += '<ul>';
+                    status += '<li>Hard refresh your browser (Ctrl+F5 or Cmd+Shift+R)</li>';
+                    status += '<li>Clear browser cache completely</li>';
+                    status += '<li>Try opening in incognito/private mode</li>';
+                    status += '</ul>';
+                } else {
+                    status += '<div class="error">⚠️ WARNING: Unexpected HTML structure</div>';
+                }
+                
+                status += '<h4>Found script tags:</h4><pre>';
+                const scriptTags = html.match(/<script[^>]*>.*?<\/script>/gi) || [];
+                scriptTags.forEach(tag => {
+                    if (tag.includes('src=')) {
+                        const src = tag.match(/src="([^"]*)"/);
+                        if (src) status += src[1] + '\n';
+                    }
+                });
+                status += '</pre>';
+                
+                results.innerHTML = status;
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Error checking deployment: ${error.message}</div>`;
+            }
+        }
+        
+        // Auto-check on load
+        checkDeployment();
+    </script>
+</body>
+</html>
