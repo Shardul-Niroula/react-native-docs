@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Handle client-side routing - this is the key fix!
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Cache static assets for better performance
+        location /assets/ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: react-native-docs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: react-native-docs
+  template:
+    metadata:
+      labels:
+        app: react-native-docs
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: nginx.conf
+        - name: app-files
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+      - name: app-files
+        configMap:
+          name: app-files  # You'll need to create this ConfigMap with your built files
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: react-native-docs-service
+spec:
+  selector:
+    app: react-native-docs
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
